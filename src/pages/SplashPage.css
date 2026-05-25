@@ -1,0 +1,261 @@
+/* ════════════════════════════════
+   SPLASH PAGE
+════════════════════════════════ */
+.splash-page {
+  width: 100vw;
+  height: 100vh;
+  background: #050810;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Grid overlay */
+.splash-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,212,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,255,0.04) 1px, transparent 1px);
+  background-size: 60px 60px;
+  animation: fadeIn 1s ease 0.5s both;
+}
+
+/* Particles */
+.particle {
+  position: absolute;
+  background: var(--accent-cyan);
+  border-radius: 50%;
+  animation: particleFloat linear infinite;
+  opacity: 0.4;
+}
+@keyframes particleFloat {
+  0% { transform: translateY(0) scale(1); opacity: 0; }
+  10% { opacity: 0.4; }
+  90% { opacity: 0.4; }
+  100% { transform: translateY(-100px) scale(0); opacity: 0; }
+}
+
+/* Glow blobs */
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+}
+.blob-1 {
+  width: 500px; height: 500px;
+  background: rgba(0,212,255,0.08);
+  top: -200px; left: -200px;
+  animation: blobPulse1 6s ease-in-out infinite;
+}
+.blob-2 {
+  width: 400px; height: 400px;
+  background: rgba(124,58,237,0.08);
+  bottom: -150px; right: -150px;
+  animation: blobPulse2 8s ease-in-out infinite;
+}
+.blob-3 {
+  width: 300px; height: 300px;
+  background: rgba(0,255,136,0.05);
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  animation: blobPulse1 5s ease-in-out infinite reverse;
+}
+@keyframes blobPulse1 {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+}
+@keyframes blobPulse2 {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  50% { transform: scale(1.1) rotate(180deg); }
+}
+
+/* Content */
+.splash-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+  z-index: 10;
+  text-align: center;
+  animation: fadeInUp 0.8s ease 0.3s both;
+}
+
+/* Logo Container */
+.splash-logo-container {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pulse-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 2px solid var(--accent-cyan);
+  animation: splashPulse 3s ease-out infinite;
+}
+.pulse-ring-1 { width: 80px; height: 80px; animation-delay: 0s; }
+.pulse-ring-2 { width: 110px; height: 110px; animation-delay: 0.8s; }
+.pulse-ring-3 { width: 140px; height: 140px; animation-delay: 1.6s; }
+
+@keyframes splashPulse {
+  0% { transform: scale(0.8); opacity: 0.8; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+.splash-logo-icon {
+  width: 110px;
+  height: 110px;
+  background: linear-gradient(135deg, rgba(0,212,255,0.15), rgba(124,58,237,0.15));
+  border: 2px solid rgba(0,212,255,0.4);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 40px rgba(0,212,255,0.3), inset 0 0 30px rgba(0,212,255,0.05);
+  animation: iconGlow 3s ease-in-out infinite;
+  z-index: 5;
+}
+@keyframes iconGlow {
+  0%, 100% { box-shadow: 0 0 30px rgba(0,212,255,0.3), inset 0 0 20px rgba(0,212,255,0.05); }
+  50% { box-shadow: 0 0 60px rgba(0,212,255,0.5), inset 0 0 40px rgba(0,212,255,0.1); }
+}
+
+/* Title */
+.splash-title-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.splash-title {
+  font-size: clamp(2.5rem, 6vw, 4rem);
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: -0.03em;
+  text-shadow: 0 0 40px rgba(0,212,255,0.4);
+}
+
+.splash-title-bro {
+  background: linear-gradient(135deg, #00d4ff, #7c3aed);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.splash-title-bar {
+  width: 60px;
+  height: 3px;
+  background: linear-gradient(90deg, #00d4ff, #7c3aed);
+  border-radius: 9999px;
+}
+
+.splash-tagline {
+  font-size: clamp(0.95rem, 2vw, 1.1rem);
+  color: #8b949e;
+  font-weight: 400;
+  max-width: 340px;
+  line-height: 1.6;
+}
+
+.tagline-quote {
+  color: var(--accent-cyan);
+  font-style: italic;
+}
+
+/* Loader */
+.splash-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.loader-track {
+  width: 200px;
+  height: 3px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.loader-fill {
+  height: 100%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #00d4ff, #7c3aed, #00d4ff);
+  background-size: 200% 100%;
+  animation: loaderAnim 2s linear, shimmerLoader 1.5s linear infinite;
+}
+@keyframes loaderAnim {
+  0% { width: 0%; }
+  100% { width: 100%; }
+}
+@keyframes shimmerLoader {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.loader-text {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+}
+
+/* Status bar */
+.splash-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+  color: rgba(139,148,158,0.7);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.status-dot {
+  width: 5px;
+  height: 5px;
+  background: var(--accent-cyan);
+  border-radius: 50%;
+  animation: blink 1.5s ease-in-out infinite;
+}
+
+/* Corners */
+.corner {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+}
+.corner-tl { top: 20px; left: 20px; }
+.corner-tr { top: 20px; right: 20px; }
+.corner-bl { bottom: 20px; left: 20px; }
+.corner-br { bottom: 20px; right: 20px; }
+
+.corner-line-h {
+  position: absolute;
+  top: 0; left: 0;
+  width: 30px; height: 2px;
+  background: var(--accent-cyan);
+  opacity: 0.5;
+  border-radius: 2px;
+}
+.corner-line-v {
+  position: absolute;
+  top: 0; left: 0;
+  width: 2px; height: 30px;
+  background: var(--accent-cyan);
+  opacity: 0.5;
+  border-radius: 2px;
+}
+.corner-tr .corner-line-h { left: auto; right: 0; }
+.corner-tr .corner-line-v { left: auto; right: 0; }
+.corner-bl .corner-line-h { top: auto; bottom: 0; }
+.corner-bl .corner-line-v { top: auto; bottom: 0; }
+.corner-br .corner-line-h { top: auto; bottom: 0; left: auto; right: 0; }
+.corner-br .corner-line-v { top: auto; bottom: 0; left: auto; right: 0; }

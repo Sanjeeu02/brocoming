@@ -1,0 +1,110 @@
+/* Settings Page */
+.settings-page { min-height: 100vh; position: relative; padding: 40px 16px 80px; }
+.settings-bg { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+.settings-blob { position: absolute; width: 500px; height: 500px; background: rgba(0,212,255,0.05); border-radius: 50%; filter: blur(120px); top: -100px; left: -100px; }
+.settings-grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(0,212,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(0,212,255,0.025) 1px, transparent 1px); background-size: 50px 50px; }
+
+.settings-container { max-width: 560px; margin: 0 auto; position: relative; z-index: 1; display: flex; flex-direction: column; gap: 16px; }
+.settings-header { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; }
+.settings-header h1 { color: #fff; }
+
+.settings-card { padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+.settings-section-title {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.85rem; font-weight: 700;
+  color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.06em;
+  margin-bottom: 4px;
+}
+
+/* Profile */
+.settings-profile { display: flex; gap: 16px; align-items: flex-start; }
+.settings-avatar {
+  width: 72px; height: 72px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #00d4ff, #7c3aed);
+  color: #000;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.3rem; font-weight: 800;
+  flex-shrink: 0;
+  position: relative;
+  border: 3px solid rgba(0,212,255,0.4);
+  overflow: hidden;
+}
+.settings-avatar-edit {
+  position: absolute; bottom: 0; right: 0;
+  width: 24px; height: 24px;
+  background: var(--accent-cyan);
+  border: 2px solid var(--bg-primary);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: #000; cursor: pointer;
+}
+.settings-profile-info { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.settings-email { font-size: 0.82rem; color: var(--text-muted); }
+.settings-phone { font-size: 0.82rem; color: var(--text-muted); }
+
+/* Theme */
+.theme-switcher { display: flex; gap: 8px; }
+.theme-btn {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-weight: 600; font-size: 0.9rem;
+  transition: all 0.2s;
+}
+.theme-btn.active {
+  background: rgba(0,212,255,0.1);
+  border-color: rgba(0,212,255,0.3);
+  color: var(--accent-cyan);
+}
+
+/* Settings row */
+.settings-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.settings-row:last-child { border-bottom: none; }
+.settings-row-info { flex: 1; }
+.settings-row-label { font-size: 0.9rem; font-weight: 600; color: #fff; }
+.settings-row-desc { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; }
+
+/* Toggle */
+.settings-toggle {
+  width: 44px; height: 24px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid var(--border);
+  position: relative;
+  transition: all 0.25s;
+  flex-shrink: 0;
+}
+.settings-toggle.on {
+  background: linear-gradient(135deg, #00d4ff, #0066ff);
+  border-color: transparent;
+}
+.toggle-knob {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  position: absolute;
+  top: 2px; left: 2px;
+  transition: left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+.settings-toggle.on .toggle-knob { left: 22px; }
+
+/* About */
+.about-info { display: flex; align-items: center; gap: 14px; }
+.about-logo {
+  width: 52px; height: 52px;
+  background: linear-gradient(135deg, rgba(0,212,255,0.15), rgba(124,58,237,0.15));
+  border: 1px solid rgba(0,212,255,0.3);
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* Danger zone */
+.danger-zone { border-color: rgba(255,68,68,0.2) !important; }
