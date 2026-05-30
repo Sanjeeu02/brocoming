@@ -1,5 +1,15 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { mockUser } from '../data/mockData';
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signOut, 
+  onAuthStateChanged,
+  GoogleAuthProvider,
+  signInWithPopup,
+  updateProfile as firebaseUpdateProfile
+} from 'firebase/auth';
+import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
+import { auth, db } from '../firebase/config';
 
 const AuthContext = createContext(null);
 
@@ -8,48 +18,103 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check localStorage for persisted session
-    const stored = localStorage.getItem('comingbro_user');
-    if (stored) {
-      try {
-        setUser(JSON.parse(stored));
-      } catch { }
-    }
-    setLoading(false);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        // Fetch additional user data from Firestore
+        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+        if (userDoc.exists()) {
+          setUser({ uid: firebaseUser.uid, ...userDoc.data() });
+        } else {
+          // Fallback if document doesn't exist yet
+          setUser({ 
+            uid: firebaseUser.uid, 
+            email: firebaseUser.email,
+            username: firebaseUser.displayName || 'User',
+            profileImage: firebaseUser.photoURL || null
+          });
+        }
+      } else {
+        setUser(null);
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const login = async (email, password) => {
-    // Mock login - replace with Firebase Auth
-    const userData = { ...mockUser, email };
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
+    const userData = { uid: userCredential.user.uid, ...userDoc.data() };
     setUser(userData);
-    localStorage.setItem('comingbro_user', JSON.stringify(userData));
     return userData;
   };
 
   const register = async (username, email, password, profileImage = null) => {
-    // Mock register - replace with Firebase Auth
-    const userData = { ...mockUser, username, email, profileImage };
-    setUser(userData);
-    localStorage.setItem('comingbro_user', JSON.stringify(userData));
-    return userData;
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const firebaseUser = userCredential.user;
+    
+    // Update Firebase profile
+    await firebaseUpdateProfile(firebaseUser, {
+      displayName: username,
+      photoURL: profileImage
+    });
+
+    // Save user profile in Firestore
+    const userData = {
+      username,
+      email,
+      profileImage,
+      createdAt: new Date().toISOString()
+    };
+    
+    await setDoc(doc(db, 'users', firebaseUser.uid), userData);
+    
+    const completeUserData = { uid: firebaseUser.uid, ...userData };
+    setUser(completeUserData);
+    return completeUserData;
   };
 
   const loginWithGoogle = async () => {
-    const userData = { ...mockUser };
-    setUser(userData);
-    localStorage.setItem('comingbro_user', JSON.stringify(userData));
-    return userData;
+    const provider = new GoogleAuthProvider();
+    const userCredential = await signInWithPopup(auth, provider);
+    const firebaseUser = userCredential.user;
+
+    // Check if user exists in Firestore
+    const userDocRef = doc(db, 'users', firebaseUser.uid);
+    const userDoc = await getDoc(userDocRef);
+    
+    let userData;
+    if (!userDoc.exists()) {
+      // First time Google login, create document
+      userData = {
+        username: firebaseUser.displayName,
+        email: firebaseUser.email,
+        profileImage: firebaseUser.photoURL,
+        createdAt: new Date().toISOString()
+      };
+      await setDoc(userDocRef, userData);
+    } else {
+      userData = userDoc.data();
+    }
+    
+    const completeUserData = { uid: firebaseUser.uid, ...userData };
+    setUser(completeUserData);
+    return completeUserData;
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await signOut(auth);
     setUser(null);
-    localStorage.removeItem('comingbro_user');
   };
 
-  const updateProfile = (updates) => {
-    const updated = { ...user, ...updates };
-    setUser(updated);
-    localStorage.setItem('comingbro_user', JSON.stringify(updated));
+  const updateProfile = async (updates) => {
+    if (!user) return;
+    
+    const userDocRef = doc(db, 'users', user.uid);
+    await updateDoc(userDocRef, updates);
+    
+    setUser(prev => ({ ...prev, ...updates }));
   };
 
   return (
@@ -59,6 +124,7 @@ export function AuthProvider({ children }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   return useContext(AuthContext);
 }

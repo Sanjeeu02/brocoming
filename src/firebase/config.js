@@ -1,15 +1,18 @@
-// Firebase Configuration
-// Replace these values with your own Firebase project config
-// Get them from: https://console.firebase.google.com
+import { initializeApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID",
-  databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com"
+  apiKey: "AIzaSyC9k5GGAS5VDOFZdwxCqi13hAedjHGwhLA",
+  authDomain: "comingbro-f441b.firebaseapp.com",
+  projectId: "comingbro-f441b",
+  storageBucket: "comingbro-f441b.firebasestorage.app",
+  messagingSenderId: "552099572549",
+  appId: "1:552099572549:web:628c679b46aabf02482c2c",
+  measurementId: "G-YTG9G7XTX6"
 };
 
-export default firebaseConfig;
+const app = initializeApp(firebaseConfig);
+export const auth = getAuth(app);
+export const db = getFirestore(app);
+export default app;

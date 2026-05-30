@@ -1,6 +1,11 @@
 import { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { mockMembers, mockMessages, mockGroups, DESTINATION } from '../data/mockData';
-import { startTracking, stopTracking as locStopTracking, calcDistance, calcETA, detectStatus, isAtDestination } from '../services/locationService';
+import { 
+  collection, doc, setDoc, getDoc, updateDoc, onSnapshot, 
+  query, where, getDocs, addDoc, serverTimestamp, deleteDoc, orderBy
+} from 'firebase/firestore';
+import { db } from '../firebase/config';
+import { useAuth } from './AuthContext';
+import { startTracking, calcDistance, calcETA, detectStatus, isAtDestination } from '../services/locationService';
 
 const GroupContext = createContext(null);
 
@@ -10,150 +15,254 @@ function generateCode(length = 7) {
 }
 
 export function GroupProvider({ children }) {
+  const { user } = useAuth();
+  
   const [activeGroup, setActiveGroup] = useState(null);
   const [members, setMembers] = useState([]);
   const [messages, setMessages] = useState([]);
-  const [userRole, setUserRole] = useState(null); // 'admin' | 'member' | 'viewer'
+  const [userRole, setUserRole] = useState(null);
   const [destination, setDestination] = useState(null);
   const [myLocation, setMyLocation] = useState(null);
   const [groupLocked, setGroupLocked] = useState(false);
   const [fakeAlert, setFakeAlert] = useState(null);
+  
   const locationStopRef = useRef(null);
-  const simulationRef = useRef(null);
   const myLastLocationRef = useRef(null);
-  const myLastMovedTimeRef = useRef(Date.now());
+  const myLastMovedTimeRef = useRef(null);
+  
+  // Listeners refs to clean up
+  const groupListenerRef = useRef(null);
+  const membersListenerRef = useRef(null);
+  const messagesListenerRef = useRef(null);
 
-  // Simulate live movement of OTHER members
-  useEffect(() => {
-    if (!activeGroup) return;
-    simulationRef.current = setInterval(() => {
-      setMembers(prev =>
-        prev.map(m => {
-          if (m.uid === 'user-001') return m; // Skip current user (handled by real GPS)
-          if (m.status === 'arrived') return m;
-          const dest = destination || DESTINATION;
-          const latDiff = dest.lat - m.location.lat;
-          const lngDiff = dest.lng - m.location.lng;
-          const dist = calcDistance(m.location.lat, m.location.lng, dest.lat, dest.lng);
-          if (dist < 0.05) {
-            return { ...m, status: 'arrived', eta: 0, distance: 0, speed: 0 };
-          }
-          const speed = m.status === 'stopped' ? 0 : m.status === 'slow' ? 0.0002 : 0.0005;
-          return {
-            ...m,
-            location: {
-              lat: m.location.lat + latDiff * speed + (Math.random() - 0.5) * 0.0002,
-              lng: m.location.lng + lngDiff * speed + (Math.random() - 0.5) * 0.0002,
-            },
-            distance: Math.max(0, dist - speed * 100),
-            eta: Math.max(0, Math.round(dist / (m.speed || 30) * 60)),
-          };
-        })
-      );
-    }, 3000);
-    return () => clearInterval(simulationRef.current);
-  }, [activeGroup, destination]);
-
-  const createGroup = (groupData) => {
-    const group = {
-      groupId: `grp-${Date.now()}`,
-      groupCode: groupData.code || generateCode(),
-      adminId: 'user-001',
-      createdAt: new Date(),
-      memberCount: 1,
-      status: 'active',
-      locked: false,
-      ...groupData,
-    };
-    setActiveGroup(group);
-    setMembers([...mockMembers]);
-    setMessages([...mockMessages]);
-    setDestination(groupData.destination || DESTINATION);
-    setUserRole('admin');
-    setGroupLocked(false);
-    return group;
+  const stopLocationTracking = () => {
+    if (locationStopRef.current) {
+      locationStopRef.current();
+      locationStopRef.current = null;
+    }
   };
 
-  const joinGroup = (code, role = 'member') => {
-    const found = mockGroups.find(g => g.groupCode === code.toUpperCase());
-    if (!found && code.length < 4) return null;
-    const group = found || {
-      groupId: `grp-joined-${Date.now()}`,
-      groupName: 'Friend Group',
-      groupCode: code.toUpperCase(),
-      adminId: 'user-002',
-      destination: DESTINATION,
-      createdAt: new Date(),
-      memberCount: mockMembers.length,
-      status: 'active',
-    };
-    setActiveGroup(group);
-    setMembers([...mockMembers]);
-    setMessages([...mockMessages]);
-    setDestination(group.destination || DESTINATION);
-    setUserRole(role);
-    setGroupLocked(false);
-    return group;
-  };
-
-  const sendMessage = (text, type = 'text') => {
-    const msg = {
-      id: `msg-${Date.now()}`,
-      senderId: 'user-001',
-      senderName: 'Arun Kumar',
-      text,
-      timestamp: new Date(),
-      type,
-    };
-    setMessages(prev => [...prev, msg]);
-  };
-
-  const removeMember = (uid) => {
-    setMembers(prev => prev.filter(m => m.uid !== uid));
-  };
-
-  const updateMemberStatus = (uid, status) => {
-    setMembers(prev => prev.map(m => m.uid === uid ? { ...m, status } : m));
-  };
-
-  const changeDestination = (dest) => {
-    setDestination(dest);
-  };
-
-  const endGroup = () => {
+  // Clear everything when leaving a group
+  const clearGroupState = () => {
     setActiveGroup(null);
     setMembers([]);
     setMessages([]);
     setDestination(null);
     setUserRole(null);
+    setGroupLocked(false);
+    
+    if (groupListenerRef.current) groupListenerRef.current();
+    if (membersListenerRef.current) membersListenerRef.current();
+    if (messagesListenerRef.current) messagesListenerRef.current();
+    stopLocationTracking();
+  };
+
+  // Set up Firebase real-time listeners for the active group
+  useEffect(() => {
+    if (!activeGroup || !activeGroup.groupId) return;
+
+    // 1. Group Listener (for destination changes, locks, etc)
+    const groupRef = doc(db, 'groups', activeGroup.groupId);
+    groupListenerRef.current = onSnapshot(groupRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.status === 'ended') {
+           clearGroupState();
+           return;
+        }
+        setDestination(data.destination);
+        setGroupLocked(data.locked);
+      }
+    });
+
+    // 2. Members Listener
+    const membersRef = collection(db, 'groups', activeGroup.groupId, 'members');
+    membersListenerRef.current = onSnapshot(membersRef, (snapshot) => {
+      const membersData = [];
+      snapshot.forEach(doc => {
+        membersData.push({ uid: doc.id, ...doc.data() });
+      });
+      setMembers(membersData);
+      
+      // Update my own role if changed
+      if (user) {
+        const me = membersData.find(m => m.uid === user.uid);
+        if (me) setUserRole(me.role);
+        else clearGroupState(); // I was removed
+      }
+    });
+
+    // 3. Messages Listener
+    const messagesRef = collection(db, 'groups', activeGroup.groupId, 'messages');
+    const q = query(messagesRef, orderBy('timestamp', 'asc'));
+    messagesListenerRef.current = onSnapshot(q, (snapshot) => {
+      const msgsData = [];
+      snapshot.forEach(doc => {
+        msgsData.push({ id: doc.id, ...doc.data(), timestamp: doc.data().timestamp?.toDate() || new Date() });
+      });
+      setMessages(msgsData);
+    });
+
+    return () => {
+      if (groupListenerRef.current) groupListenerRef.current();
+      if (membersListenerRef.current) membersListenerRef.current();
+      if (messagesListenerRef.current) messagesListenerRef.current();
+    };
+  }, [activeGroup?.groupId, user?.uid]);
+
+  const createGroup = async (groupData) => {
+    if (!user) return null;
+    
+    const groupId = `grp-${Date.now()}`;
+    const groupCode = groupData.code || generateCode();
+    
+    const newGroup = {
+      groupId,
+      groupCode: groupCode.toUpperCase(),
+      groupName: groupData.groupName || 'Friend Group',
+      adminId: user.uid,
+      destination: groupData.destination || null,
+      createdAt: serverTimestamp(),
+      memberCount: 1,
+      status: 'active',
+      locked: false,
+    };
+
+    // Save group to Firestore
+    await setDoc(doc(db, 'groups', groupId), newGroup);
+    
+    // Save admin to members subcollection
+    const memberData = {
+      username: user.username,
+      profileImage: user.profileImage || null,
+      role: 'admin',
+      status: 'started',
+      location: null,
+      eta: null,
+      distance: null,
+      speed: 0,
+      isOnline: true,
+      joinedAt: serverTimestamp()
+    };
+    await setDoc(doc(db, 'groups', groupId, 'members', user.uid), memberData);
+
+    setActiveGroup(newGroup);
+    return newGroup;
+  };
+
+  const joinGroup = async (code) => {
+    if (!user) return null;
+    
+    const upperCode = code.toUpperCase();
+    
+    // Find group by code
+    const groupsRef = collection(db, 'groups');
+    const q = query(groupsRef, where('groupCode', '==', upperCode), where('status', '==', 'active'));
+    const querySnapshot = await getDocs(q);
+    
+    if (querySnapshot.empty) return null;
+    
+    const groupDoc = querySnapshot.docs[0];
+    const groupData = { groupId: groupDoc.id, ...groupDoc.data() };
+    
+    if (groupData.locked) throw new Error("This group is locked by the admin.");
+
+    // Add user to members subcollection
+    const memberData = {
+      username: user.username,
+      profileImage: user.profileImage || null,
+      role: 'member',
+      status: 'started',
+      location: null,
+      eta: null,
+      distance: null,
+      speed: 0,
+      isOnline: true,
+      joinedAt: serverTimestamp()
+    };
+    
+    await setDoc(doc(db, 'groups', groupData.groupId, 'members', user.uid), memberData);
+    
+    // Increment member count (ideally in a transaction, simplified here)
+    await updateDoc(doc(db, 'groups', groupData.groupId), {
+      memberCount: groupData.memberCount + 1
+    });
+
+    setActiveGroup(groupData);
+    return groupData;
+  };
+
+  const sendMessage = async (text, type = 'text') => {
+    if (!activeGroup || !user) return;
+    
+    const messagesRef = collection(db, 'groups', activeGroup.groupId, 'messages');
+    await addDoc(messagesRef, {
+      senderId: user.uid,
+      senderName: user.username || 'User',
+      text,
+      type,
+      timestamp: serverTimestamp()
+    });
+  };
+
+  const removeMember = async (uid) => {
+    if (!activeGroup) return;
+    await deleteDoc(doc(db, 'groups', activeGroup.groupId, 'members', uid));
+    const groupRef = doc(db, 'groups', activeGroup.groupId);
+    const snap = await getDoc(groupRef);
+    if(snap.exists()){
+      await updateDoc(groupRef, { memberCount: Math.max(0, snap.data().memberCount - 1) });
+    }
+  };
+
+  const updateMemberStatus = async (uid, status) => {
+    if (!activeGroup) return;
+    await updateDoc(doc(db, 'groups', activeGroup.groupId, 'members', uid), { status });
+  };
+
+  const changeDestination = async (dest) => {
+    if (!activeGroup) return;
+    await updateDoc(doc(db, 'groups', activeGroup.groupId), { destination: dest });
+  };
+
+  const endGroup = async () => {
+    if (!activeGroup) return;
+    await updateDoc(doc(db, 'groups', activeGroup.groupId), { status: 'ended' });
+    clearGroupState();
+  };
+
+  const lockGroup = async () => {
+    if (!activeGroup) return;
+    await updateDoc(doc(db, 'groups', activeGroup.groupId), { locked: true });
+  };
+  
+  const unlockGroup = async () => {
+    if (!activeGroup) return;
+    await updateDoc(doc(db, 'groups', activeGroup.groupId), { locked: false });
   };
 
   const startLocationTracking = () => {
-    // Make sure we don't start multiple trackers
-    if (locationStopRef.current) return;
+    if (locationStopRef.current || !activeGroup || !user) return;
 
     locationStopRef.current = startTracking(
-      (pos) => {
-        const dest = destination || DESTINATION;
-        
-        // 1. Update our local state
+      async (pos) => {
         setMyLocation(pos);
+        
+        // Find my current record in state to check status
+        const myRecord = members.find(m => m.uid === user.uid) || {};
+        if (myRecord.status === 'arrived') return;
 
-        // 2. Detect movement status and update our member info in the group
-        setMembers(prev => prev.map(m => {
-          if (m.uid === 'user-001') {
-            if (m.status === 'arrived') return m;
+        const dest = destination;
+        let status = myRecord.status || 'started';
+        let distKm = 0;
+        let eta = 0;
 
-            // Check arrival
-            if (isAtDestination(pos.lat, pos.lng, dest.lat, dest.lng, 50)) {
-              return { ...m, location: pos, status: 'arrived', eta: 0, distance: 0, speed: 0 };
-            }
-
-            // Detect real status
-            const distKm = calcDistance(pos.lat, pos.lng, dest.lat, dest.lng);
-            const eta = calcETA(distKm, pos.speed || 30);
-            
-            let status = m.status;
+        if (dest && dest.lat && dest.lng) {
+          if (isAtDestination(pos.lat, pos.lng, dest.lat, dest.lng, 50)) {
+            status = 'arrived';
+          } else {
+            distKm = calcDistance(pos.lat, pos.lng, dest.lat, dest.lng);
+            eta = calcETA(distKm, pos.speed || 30);
             
             if (myLastLocationRef.current) {
               const detectedStatus = detectStatus(
@@ -165,13 +274,11 @@ export function GroupProvider({ children }) {
                 myLastMovedTimeRef.current
               );
               
-              // Only override with 'moving' or 'slow' if the user hasn't manually set something like 'delayed'
-              if (detectedStatus !== m.status && m.status !== 'delayed') {
+              if (detectedStatus !== status && status !== 'delayed') {
                 status = detectedStatus;
               }
               
-              // Fake detection alert
-              if (detectedStatus === 'stopped' && m.status === 'moving') {
+              if (detectedStatus === 'stopped' && myRecord.status === 'moving') {
                 setFakeAlert('You haven\'t moved but claim to be on the way!');
               } else {
                 setFakeAlert(null);
@@ -181,37 +288,31 @@ export function GroupProvider({ children }) {
                 myLastMovedTimeRef.current = Date.now();
               }
             }
-            
-            myLastLocationRef.current = pos;
-
-            return {
-              ...m,
-              location: pos,
-              speed: pos.speed,
-              distance: distKm,
-              eta,
-              status
-            };
           }
-          return m;
-        }));
+        }
+        
+        myLastLocationRef.current = pos;
+
+        // Push update to Firestore
+        try {
+          const memberRef = doc(db, 'groups', activeGroup.groupId, 'members', user.uid);
+          await updateDoc(memberRef, {
+            location: pos,
+            speed: pos.speed || 0,
+            distance: distKm,
+            eta,
+            status,
+            lastUpdate: serverTimestamp()
+          });
+        } catch (error) {
+          console.error("Error updating location to Firestore:", error);
+        }
       },
       (err) => {
         console.warn('Location tracking error:', err);
       }
     );
   };
-
-  const stopLocationTracking = () => {
-    if (locationStopRef.current) {
-      locationStopRef.current(); // Calls the cleanup function returned by startTracking
-      locationStopRef.current = null;
-    }
-  };
-
-
-  const lockGroup = () => setGroupLocked(true);
-  const unlockGroup = () => setGroupLocked(false);
 
   const arrivedCount = members.filter(m => m.status === 'arrived').length;
   const delayedCount = members.filter(m => m.status === 'delayed' || m.status === 'stopped').length;
@@ -231,6 +332,7 @@ export function GroupProvider({ children }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useGroup() {
   return useContext(GroupContext);
 }
