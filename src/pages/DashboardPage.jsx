@@ -129,10 +129,10 @@ export default function DashboardPage() {
           {/* Stats row */}
           <div className="dash-stats">
             {[
-              { icon: '🗺️', value: '3', label: 'Total Trips' },
-              { icon: '👥', value: '12', label: 'Friends Tracked' },
-              { icon: '✅', value: '97%', label: 'Arrival Rate' },
-              { icon: '⏱️', value: '8 min', label: 'Avg ETA Accuracy' },
+              { icon: '🗺️', value: '0', label: 'Total Trips' },
+              { icon: '👥', value: '0', label: 'Friends Tracked' },
+              { icon: '✅', value: 'N/A', label: 'Arrival Rate' },
+              { icon: '⏱️', value: 'N/A', label: 'Avg ETA Accuracy' },
             ].map((s, i) => (
               <div key={i} className="dash-stat-card glass-card" style={{ animationDelay: `${i * 0.05}s` }}>
                 <span className="dash-stat-icon">{s.icon}</span>
@@ -189,28 +189,10 @@ export default function DashboardPage() {
             <button className="btn btn-ghost btn-sm" onClick={() => navigate('/trips')}>View All</button>
           </div>
 
-          <div className="dash-recent-list">
-            {mockPreviousTrips.slice(0, 3).map((trip, i) => (
-              <div key={trip.id} className="dash-recent-card glass-card" style={{ animationDelay: `${0.35 + i * 0.07}s`, animationFillMode: 'both' }}>
-                <div className="dash-recent-icon">
-                  <MapPin size={18} style={{ color: 'var(--accent-cyan)' }} />
-                </div>
-                <div className="dash-recent-info">
-                  <div className="dash-recent-name">{trip.groupName}</div>
-                  <div className="dash-recent-dest text-muted text-sm">{trip.destination}</div>
-                  <div className="dash-recent-meta">
-                    <span className="badge badge-arrived">
-                      {trip.arrived}/{trip.memberCount} arrived
-                    </span>
-                    <span className="text-muted text-xs">{trip.date}</span>
-                  </div>
-                </div>
-                <div className="dash-recent-duration">
-                  <div className="dash-recent-time">{trip.duration}</div>
-                  <Star size={14} style={{ color: 'var(--accent-gold)' }} />
-                </div>
-              </div>
-            ))}
+          <div className="dash-recent-list" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+            <MapPin size={32} style={{ opacity: 0.2, margin: '0 auto 1rem' }} />
+            <p>You have no recent trips.</p>
+            <p style={{ fontSize: '0.8rem', marginTop: '0.5rem' }}>Create or join a group to start tracking!</p>
           </div>
         </section>
 

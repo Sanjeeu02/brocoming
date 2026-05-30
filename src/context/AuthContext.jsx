@@ -8,7 +8,7 @@ import {
   signInWithPopup,
   updateProfile as firebaseUpdateProfile
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { auth, db } from '../firebase/config';
 
 const AuthContext = createContext(null);
@@ -18,28 +18,33 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    let unsubscribeDoc = null;
+    const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
-        // Fetch additional user data from Firestore
-        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-        if (userDoc.exists()) {
-          setUser({ uid: firebaseUser.uid, ...userDoc.data() });
-        } else {
-          // Fallback if document doesn't exist yet
-          setUser({ 
-            uid: firebaseUser.uid, 
-            email: firebaseUser.email,
-            username: firebaseUser.displayName || 'User',
-            profileImage: firebaseUser.photoURL || null
-          });
-        }
+        unsubscribeDoc = onSnapshot(doc(db, 'users', firebaseUser.uid), (docSnap) => {
+          if (docSnap.exists()) {
+            setUser({ uid: firebaseUser.uid, ...docSnap.data() });
+          } else {
+            setUser({ 
+              uid: firebaseUser.uid, 
+              email: firebaseUser.email,
+              username: firebaseUser.displayName || 'User',
+              profileImage: firebaseUser.photoURL || null
+            });
+          }
+          setLoading(false);
+        });
       } else {
         setUser(null);
+        setLoading(false);
+        if (unsubscribeDoc) unsubscribeDoc();
       }
-      setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeDoc) unsubscribeDoc();
+    };
   }, []);
 
   const login = async (email, password) => {
