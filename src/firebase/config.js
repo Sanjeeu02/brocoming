@@ -1,18 +1,24 @@
-import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
+import { getAnalytics } from "firebase/analytics";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyC9k5GGAS5VDOFZdwxCqi13hAedjHGwhLA",
-  authDomain: "comingbro-f441b.firebaseapp.com",
-  projectId: "comingbro-f441b",
-  storageBucket: "comingbro-f441b.firebasestorage.app",
-  messagingSenderId: "552099572549",
-  appId: "1:552099572549:web:628c679b46aabf02482c2c",
-  measurementId: "G-YTG9G7XTX6"
+  apiKey: "AIzaSyDQ3v9Q0l3wRPkxzFd6IcxH9PCsglP-WNs",
+  authDomain: "fun-app-8edf9.firebaseapp.com",
+  projectId: "fun-app-8edf9",
+  storageBucket: "fun-app-8edf9.firebasestorage.app",
+  messagingSenderId: "243331703727",
+  appId: "1:243331703727:web:a567ebef0f2fe32033455a",
+  measurementId: "G-B5MDVCGS63"
 };
 
 const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const db = getFirestore(app);
-export default app;
+const auth = getAuth(app);
+const db = getFirestore(app);
+let analytics = null;
+if (typeof window !== "undefined") {
+  analytics = getAnalytics(app);
+}
+
+export { auth, db, analytics };
