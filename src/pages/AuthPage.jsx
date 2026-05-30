@@ -28,7 +28,11 @@ export default function AuthPage() {
       await login(loginData.email, loginData.password);
       navigate('/dashboard');
     } catch (err) {
-      setError('Invalid credentials. Try again.');
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
+        setError('User does not exist or invalid credentials, please register.');
+      } else {
+        setError('Invalid credentials. Try again.');
+      }
     } finally { setLoading(false); }
   };
 
@@ -42,7 +46,11 @@ export default function AuthPage() {
       await register(regData.username, regData.email, regData.password, profilePreview);
       navigate('/dashboard');
     } catch (err) {
-      setError('Registration failed. Try again.');
+      if (err.code === 'auth/email-already-in-use') {
+        setError('User already exists, please login.');
+      } else {
+        setError('Registration failed. Try again.');
+      }
     } finally { setLoading(false); }
   };
 
